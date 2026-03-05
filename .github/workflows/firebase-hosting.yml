@@ -9,6 +9,8 @@ on:
 jobs:
   build_and_deploy:
     runs-on: ubuntu-latest
+    env:
+      FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_CRACKZONE_472DD != '' && secrets.FIREBASE_SERVICE_ACCOUNT_CRACKZONE_472DD || secrets.FIREBASE_SERVICE_ACCOUNT }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -24,10 +26,17 @@ jobs:
       - name: Build Flutter Web
         run: flutter build web --release --dart-define=API_BASE_URL=https://app.crackzones.xyz/api
 
+      - name: Validate Firebase secret
+        run: |
+          if [ -z "${FIREBASE_SERVICE_ACCOUNT}" ]; then
+            echo "Missing Firebase secret. Add FIREBASE_SERVICE_ACCOUNT_CRACKZONE_472DD or FIREBASE_SERVICE_ACCOUNT in GitHub repository secrets."
+            exit 1
+          fi
+
       - name: Deploy To Firebase Hosting
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
-          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_CRACKZONE_472DD }}
+          firebaseServiceAccount: ${{ env.FIREBASE_SERVICE_ACCOUNT }}
           projectId: crackzone-472dd
           channelId: live
