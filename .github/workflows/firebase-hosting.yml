@@ -24,7 +24,7 @@ jobs:
         run: flutter pub get
 
       - name: Build Flutter Web
-        run: flutter build web --release --dart-define=API_BASE_URL=https://app.crackzones.xyz/api
+        run: flutter build web --release --no-wasm-dry-run --dart-define=API_BASE_URL=https://app.crackzones.xyz/api
 
       - name: Validate Firebase secret
         run: |
