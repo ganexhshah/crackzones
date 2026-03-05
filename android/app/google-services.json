@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "678569739060",
+    "project_id": "crackzone-472dd",
+    "storage_bucket": "crackzone-472dd.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:678569739060:android:cbe22d930a2cf78ef01b61",
+        "android_client_info": {
+          "package_name": "com.wiperspace.crackzone1"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "678569739060-70e0uumcc1ab5p8rn2m52c6jili58bpi.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.wiperspace.crackzone1",
+            "certificate_hash": "a7e552ddcaf7dc1b8eb4491a215d85c60a982b50"
+          }
+        },
+        {
+          "client_id": "678569739060-g59eu4uo402cmbactl80b4b7b9pti7qm.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA-VRzZWRCIVNMt88gmRmT9_7n45TiTGiY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "678569739060-g59eu4uo402cmbactl80b4b7b9pti7qm.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
