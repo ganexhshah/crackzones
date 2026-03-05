@@ -1,10 +1,10 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import 'services/api_service.dart';
 import 'firebase_options.dart';
 import 'services/in_app_chat_popup_service.dart';
 import 'providers/auth_provider.dart';
@@ -62,16 +62,36 @@ Future<void> _initPushNotifications() async {
 }
 
 Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  if (kIsWeb) {
-    await Firebase.initializeApp(options: DefaultFirebaseOptions.web);
-  } else {
-    await Firebase.initializeApp();
-    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-  }
-  await _initPushNotifications();
+  await runZonedGuarded(
+    () async {
+      if (kReleaseMode) {
+        debugPrint = (String? _, {int? wrapWidth}) {};
+      }
 
-  runApp(const MyApp());
+      WidgetsFlutterBinding.ensureInitialized();
+      if (kIsWeb) {
+        await Firebase.initializeApp(options: DefaultFirebaseOptions.web);
+      } else {
+        await Firebase.initializeApp();
+        FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+      }
+      await _initPushNotifications();
+
+      runApp(const MyApp());
+    },
+    (error, stackTrace) {
+      if (kDebugMode) {
+        debugPrint('Unhandled error: $error');
+      }
+    },
+    zoneSpecification: ZoneSpecification(
+      print: (self, parent, zone, line) {
+        if (kDebugMode) {
+          parent.print(zone, line);
+        }
+      },
+    ),
+  );
 }
 
 class MyApp extends StatefulWidget {
