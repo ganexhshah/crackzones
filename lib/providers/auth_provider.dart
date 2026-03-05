@@ -15,6 +15,11 @@ class AuthProvider with ChangeNotifier {
   String? get error => _error;
   Map<String, dynamic>? get accountStatus => _accountStatus;
   bool get isAuthenticated => _user != null;
+  void _debugLog(String message) {
+    if (kDebugMode) {
+      debugPrint(message);
+    }
+  }
 
   AuthProvider() {
     _setupTokenRefreshListener();
@@ -30,15 +35,15 @@ class AuthProvider with ChangeNotifier {
               token: newToken,
               platform: _pushPlatform(),
             );
-            print('AuthProvider: Token refresh registered successfully');
+            _debugLog('AuthProvider: Token refresh registered successfully');
           } catch (e) {
-            print('AuthProvider: Token refresh registration failed: $e');
+            _debugLog('AuthProvider: Token refresh registration failed: $e');
           }
         }
       });
     } catch (e) {
       // Messaging can be unavailable depending on browser/environment.
-      print('AuthProvider: Push token refresh listener not available: $e');
+      _debugLog('AuthProvider: Push token refresh listener not available: $e');
     }
   }
 
@@ -58,17 +63,17 @@ class AuthProvider with ChangeNotifier {
     try {
       final fcmToken = await FirebaseMessaging.instance.getToken();
       if (fcmToken == null || fcmToken.isEmpty) {
-        print('AuthProvider: FCM token null/empty, skipping register');
+        _debugLog('AuthProvider: FCM token null/empty, skipping register');
         return;
       }
       final res = await ApiService.registerPushToken(
         token: fcmToken,
         platform: _pushPlatform(),
       );
-      print('AuthProvider: registerPushToken response: $res');
+      _debugLog('AuthProvider: registerPushToken response: $res');
     } catch (_) {
       // Keep auth flow uninterrupted if push registration fails.
-      print('AuthProvider: registerPushToken failed');
+      _debugLog('AuthProvider: registerPushToken failed');
     }
   }
 
@@ -120,7 +125,7 @@ class AuthProvider with ChangeNotifier {
     String? phone,
     String? name,
   }) async {
-    print('AuthProvider: Starting signup for $email');
+    _debugLog('AuthProvider: Starting signup for $email');
     _isLoading = true;
     _error = null;
     notifyListeners();
@@ -133,7 +138,7 @@ class AuthProvider with ChangeNotifier {
         name: name,
       );
 
-      print('AuthProvider: Signup result: $result');
+      _debugLog('AuthProvider: Signup result: $result');
 
       if (result['error'] != null) {
         _error = result['error'];
@@ -142,20 +147,20 @@ class AuthProvider with ChangeNotifier {
             : null;
         _isLoading = false;
         notifyListeners();
-        print('AuthProvider: Signup error: $_error');
+        _debugLog('AuthProvider: Signup error: $_error');
         return false;
       }
 
       _isLoading = false;
       _accountStatus = null;
       notifyListeners();
-      print('AuthProvider: Signup successful');
+      _debugLog('AuthProvider: Signup successful');
       return true;
     } catch (e) {
       _error = e.toString();
       _isLoading = false;
       notifyListeners();
-      print('AuthProvider: Signup exception: $e');
+      _debugLog('AuthProvider: Signup exception: $e');
       return false;
     }
   }
@@ -195,7 +200,7 @@ class AuthProvider with ChangeNotifier {
   }
 
   Future<bool> login({required String email, required String password}) async {
-    print('AuthProvider: Starting login for $email');
+    _debugLog('AuthProvider: Starting login for $email');
     _isLoading = true;
     _error = null;
     _accountStatus = null;
@@ -204,7 +209,7 @@ class AuthProvider with ChangeNotifier {
     try {
       final result = await ApiService.login(email: email, password: password);
 
-      print('AuthProvider: Login result: $result');
+      _debugLog('AuthProvider: Login result: $result');
 
       if (result['error'] != null) {
         _error = result['error'];
@@ -213,7 +218,7 @@ class AuthProvider with ChangeNotifier {
             : null;
         _isLoading = false;
         notifyListeners();
-        print('AuthProvider: Login error: $_error');
+        _debugLog('AuthProvider: Login error: $_error');
         return false;
       }
 
@@ -223,13 +228,13 @@ class AuthProvider with ChangeNotifier {
       await InAppChatPopupService.instance.reconnect();
       _isLoading = false;
       notifyListeners();
-      print('AuthProvider: Login successful');
+      _debugLog('AuthProvider: Login successful');
       return true;
     } catch (e) {
       _error = e.toString();
       _isLoading = false;
       notifyListeners();
-      print('AuthProvider: Login exception: $e');
+      _debugLog('AuthProvider: Login exception: $e');
       return false;
     }
   }
@@ -277,7 +282,7 @@ class AuthProvider with ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
-      print('Load profile error: $e');
+      _debugLog('Load profile error: $e');
     }
   }
 

@@ -52,10 +52,14 @@ class GoogleAuthService {
       if (detail.contains('canceled') || detail.contains('cancelled')) {
         return {'error': 'Sign in cancelled'};
       }
-      print('Google Sign In Platform Error: code=${e.code}, message=${e.message}');
+      if (kDebugMode) {
+        debugPrint('Google Sign In Platform Error: code=${e.code}, message=${e.message}');
+      }
       return {'error': 'Google sign in failed (${e.code})'};
     } catch (e) {
-      print('Google Sign In Error: $e');
+      if (kDebugMode) {
+        debugPrint('Google Sign In Error: $e');
+      }
       return {'error': 'Google sign in failed: ${e.toString()}'};
     }
   }

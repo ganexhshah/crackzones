@@ -41,6 +41,11 @@ class ApiService {
 
   static String get baseUrlV1 => '$baseUrl/v1';
   static const Duration timeout = Duration(seconds: 60);
+  static void _debugLog(String message) {
+    if (kDebugMode) {
+      debugPrint(message);
+    }
+  }
 
   static bool _shouldRetryOnLocalFallback(Map<String, dynamic> result) {
     final error = (result['error'] ?? '').toString().toLowerCase();
@@ -98,14 +103,14 @@ class ApiService {
   }) async {
     try {
       if (debugUrl != null) {
-        print('API Request: $debugUrl');
+        _debugLog('API Request: $debugUrl');
       }
       final response = await request().timeout(timeout);
-      print('Response status: ${response.statusCode}');
+      _debugLog('Response status: ${response.statusCode}');
       if (response.statusCode >= 400) {
-        print('Response URL: ${response.request?.url}');
+        _debugLog('Response URL: ${response.request?.url}');
       }
-      print('Response body: ${response.body}');
+      _debugLog('Response body: ${response.body}');
 
       final contentType = response.headers['content-type'] ?? '';
       final isJson = contentType.toLowerCase().contains('application/json');
@@ -140,15 +145,15 @@ class ApiService {
         };
       }
     } on SocketException catch (e) {
-      print('SocketException: $e');
+      _debugLog('SocketException: $e');
       return {
         'error': 'Cannot connect to server. Check your network connection.',
       };
     } on TimeoutException catch (e) {
-      print('TimeoutException: $e');
+      _debugLog('TimeoutException: $e');
       return {'error': 'Connection timeout. Server is not responding.'};
     } catch (e) {
-      print('Error: $e');
+      _debugLog('Error: $e');
       return {'error': 'An error occurred: ${e.toString()}'};
     }
   }
@@ -588,12 +593,12 @@ class ApiService {
       final streamedResponse = await request.send().timeout(timeout);
       final response = await http.Response.fromStream(streamedResponse);
 
-      print('Deposit response status: ${response.statusCode}');
-      print('Deposit response body: ${response.body}');
+      _debugLog('Deposit response status: ${response.statusCode}');
+      _debugLog('Deposit response body: ${response.body}');
 
       return jsonDecode(response.body);
     } catch (e) {
-      print('Deposit error: $e');
+      _debugLog('Deposit error: $e');
       return {'error': 'Deposit failed: ${e.toString()}'};
     }
   }
@@ -649,12 +654,12 @@ class ApiService {
       final streamedResponse = await request.send().timeout(timeout);
       final response = await http.Response.fromStream(streamedResponse);
 
-      print('Upload response status: ${response.statusCode}');
-      print('Upload response body: ${response.body}');
+      _debugLog('Upload response status: ${response.statusCode}');
+      _debugLog('Upload response body: ${response.body}');
 
       return jsonDecode(response.body);
     } catch (e) {
-      print('Upload error: $e');
+      _debugLog('Upload error: $e');
       return {'error': 'Upload failed: ${e.toString()}'};
     }
   }
