@@ -11,7 +11,7 @@ class GoogleAuthService {
   );
 
   static final GoogleSignIn _googleSignIn = GoogleSignIn(
-    scopes: ['email', 'profile'],
+    scopes: ['openid', 'email', 'profile'],
     clientId: _googleWebClientId,
     serverClientId:
         '678569739060-g59eu4uo402cmbactl80b4b7b9pti7qm.apps.googleusercontent.com',
@@ -27,12 +27,17 @@ class GoogleAuthService {
 
       final GoogleSignInAuthentication auth = await account.authentication;
       final String? idToken = auth.idToken;
+      final String? accessToken = auth.accessToken;
 
-      if (idToken == null) {
-        throw Exception('Failed to get ID token');
+      if ((idToken == null || idToken.isEmpty) &&
+          (accessToken == null || accessToken.isEmpty)) {
+        throw Exception('Failed to get Google token');
       }
 
-      final result = await ApiService.googleSignIn(idToken);
+      final result = await ApiService.googleSignIn(
+        idToken: idToken,
+        accessToken: accessToken,
+      );
       return result;
     } on PlatformException catch (e) {
       final detail = '${e.code} ${e.message ?? ''}'.toLowerCase();

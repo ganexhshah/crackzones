@@ -252,12 +252,19 @@ class ApiService {
     return result;
   }
 
-  static Future<Map<String, dynamic>> googleSignIn(String idToken) async {
+  static Future<Map<String, dynamic>> googleSignIn({
+    String? idToken,
+    String? accessToken,
+  }) async {
     final result = await _handleRequest(
       () => http.post(
         Uri.parse('$baseUrl/auth/google'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'idToken': idToken}),
+        body: jsonEncode({
+          if (idToken != null && idToken.isNotEmpty) 'idToken': idToken,
+          if (accessToken != null && accessToken.isNotEmpty)
+            'accessToken': accessToken,
+        }),
       ),
     );
 
