@@ -11,7 +11,7 @@ class GoogleAuthService {
   );
 
   static final GoogleSignIn _googleSignIn = GoogleSignIn(
-    scopes: ['openid', 'email', 'profile'],
+    scopes: ['openid', 'email'],
     clientId: _googleWebClientId,
     serverClientId:
         '678569739060-g59eu4uo402cmbactl80b4b7b9pti7qm.apps.googleusercontent.com',
@@ -59,6 +59,14 @@ class GoogleAuthService {
     } catch (e) {
       if (kDebugMode) {
         debugPrint('Google Sign In Error: $e');
+      }
+      final message = e.toString();
+      if (message.contains('people.googleapis.com') ||
+          message.contains('People API')) {
+        return {
+          'error':
+              'Google People API is disabled for this project. Enable People API in Google Cloud and retry after a few minutes.',
+        };
       }
       return {'error': 'Google sign in failed: ${e.toString()}'};
     }
