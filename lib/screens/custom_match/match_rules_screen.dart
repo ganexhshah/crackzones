@@ -280,7 +280,7 @@ class _MatchRulesScreenState extends State<MatchRulesScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.yellow.withOpacity(0.3),
+            color: Colors.yellow.withValues(alpha: 0.3),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -291,7 +291,7 @@ class _MatchRulesScreenState extends State<MatchRulesScreen> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
               shape: BoxShape.circle,
             ),
             child: const Icon(
@@ -317,7 +317,7 @@ class _MatchRulesScreenState extends State<MatchRulesScreen> {
                 : 'Please read and accept these rules before ${widget.actionType == 'create' ? 'creating' : 'joining'} a match',
             style: TextStyle(
               fontSize: 14,
-              color: Colors.white.withOpacity(0.95),
+              color: Colors.white.withValues(alpha: 0.95),
               height: 1.4,
             ),
             textAlign: TextAlign.center,
@@ -342,7 +342,7 @@ class _MatchRulesScreenState extends State<MatchRulesScreen> {
         border: Border.all(color: Colors.grey[200]!),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -357,7 +357,7 @@ class _MatchRulesScreenState extends State<MatchRulesScreen> {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: iconColor.withOpacity(0.1),
+                  color: iconColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Stack(
@@ -531,7 +531,7 @@ class _MatchRulesScreenState extends State<MatchRulesScreen> {
                 boxShadow: _agreedToRules
                     ? [
                         BoxShadow(
-                          color: Colors.green.withOpacity(0.2),
+                          color: Colors.green.withValues(alpha: 0.2),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),
@@ -574,7 +574,7 @@ class _MatchRulesScreenState extends State<MatchRulesScreen> {
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 10,
             offset: const Offset(0, -2),
           ),
@@ -624,3 +624,4 @@ class _MatchRulesScreenState extends State<MatchRulesScreen> {
     );
   }
 }
+

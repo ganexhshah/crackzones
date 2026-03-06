@@ -673,3 +673,4 @@ class _RewardsScreenState extends State<RewardsScreen>
     );
   }
 }
+

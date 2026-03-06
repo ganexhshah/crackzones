@@ -170,3 +170,4 @@ class _AccountRestrictedScreenState extends State<AccountRestrictedScreen> {
     );
   }
 }
+

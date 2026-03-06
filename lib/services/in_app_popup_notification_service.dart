@@ -110,3 +110,4 @@ class InAppPopupNotificationService {
     _isShowing = false;
   }
 }
+

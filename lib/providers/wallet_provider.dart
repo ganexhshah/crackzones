@@ -20,7 +20,7 @@ class WalletProvider with ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
-      print('Load balance error: $e');
+      debugPrint('Load balance error: $e');
     }
   }
   
@@ -99,7 +99,7 @@ class WalletProvider with ChangeNotifier {
       _transactions = allTransactions;
     } catch (e) {
       _error = e.toString();
-      print('Load transactions error: $e');
+      debugPrint('Load transactions error: $e');
     }
     
     _isLoading = false;
@@ -109,7 +109,9 @@ class WalletProvider with ChangeNotifier {
   Future<bool> submitDeposit({
     required double amount,
     required String method,
-    required String screenshotPath,
+    String? screenshotPath,
+    List<int>? screenshotBytes,
+    String screenshotFilename = 'deposit-proof.jpg',
   }) async {
     _isLoading = true;
     _error = null;
@@ -120,6 +122,8 @@ class WalletProvider with ChangeNotifier {
         amount: amount,
         method: method,
         screenshotPath: screenshotPath,
+        screenshotBytes: screenshotBytes,
+        screenshotFilename: screenshotFilename,
       );
       
       if (result['error'] != null) {
@@ -180,3 +184,5 @@ class WalletProvider with ChangeNotifier {
     }
   }
 }
+
+

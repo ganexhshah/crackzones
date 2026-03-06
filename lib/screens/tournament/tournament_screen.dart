@@ -302,7 +302,7 @@ class _TournamentScreenState extends State<TournamentScreen>
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -334,7 +334,7 @@ class _TournamentScreenState extends State<TournamentScreen>
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: [
                       BoxShadow(
-                        color: statusColor.withOpacity(0.2),
+                        color: statusColor.withValues(alpha: 0.2),
                         blurRadius: 8,
                         offset: const Offset(0, 2),
                       ),
@@ -816,3 +816,4 @@ class _TournamentRow {
     );
   }
 }
+

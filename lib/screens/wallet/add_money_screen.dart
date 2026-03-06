@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
+import 'fonepay_payment_screen.dart';
 import 'payment_screen.dart';
 
 class AddMoneyScreen extends StatefulWidget {
@@ -17,6 +18,7 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
   final List<Map<String, dynamic>> _paymentMethods = [
     {'name': 'esewa', 'image': 'assets/esewa.webp', 'displayName': 'eSewa'},
     {'name': 'khalti', 'image': 'assets/khalti.png', 'displayName': 'Khalti'},
+    {'name': 'fonepay', 'displayName': 'Fonepay', 'icon': Icons.qr_code_2},
   ];
 
   bool get _canContinue {
@@ -151,7 +153,9 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      ..._paymentMethods.map((method) => _buildPaymentOption(method)),
+                      ..._paymentMethods.map(
+                        (method) => _buildPaymentOption(method),
+                      ),
                     ],
                   ),
                 ),
@@ -216,13 +220,18 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
                 color: Colors.grey[50],
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Image.asset(
-                method['image'],
-                fit: BoxFit.contain,
-                errorBuilder: (context, error, stackTrace) {
-                  return Icon(Icons.payment, color: Colors.grey[400]);
-                },
-              ),
+              child: method['image'] != null
+                  ? Image.asset(
+                      method['image'],
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Icon(Icons.payment, color: Colors.grey[400]);
+                      },
+                    )
+                  : Icon(
+                      method['icon'] as IconData? ?? Icons.payment,
+                      color: Colors.grey[700],
+                    ),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -235,7 +244,8 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
                 ),
               ),
             ),
-            if (isSelected) Icon(Icons.check_circle, color: Colors.yellow[700], size: 24),
+            if (isSelected)
+              Icon(Icons.check_circle, color: Colors.yellow[700], size: 24),
           ],
         ),
       ),
@@ -249,7 +259,7 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, -5),
           ),
@@ -263,15 +273,18 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
           child: ElevatedButton(
             onPressed: _canContinue
                 ? () async {
-                    final amount = int.tryParse(_amountController.text.trim()) ?? 0;
+                    final amount =
+                        int.tryParse(_amountController.text.trim()) ?? 0;
                     if (amount >= _minDepositAmount) {
                       final submitted = await Navigator.push<bool>(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => PaymentScreen(
-                            amount: amount,
-                            paymentMethod: _selectedPayment!,
-                          ),
+                          builder: (context) => _selectedPayment == 'fonepay'
+                              ? FonepayPaymentScreen(amount: amount)
+                              : PaymentScreen(
+                                  amount: amount,
+                                  paymentMethod: _selectedPayment!,
+                                ),
                         ),
                       );
 
@@ -281,7 +294,9 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
                     } else {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text('Minimum amount is Rs $_minDepositAmount'),
+                          content: Text(
+                            'Minimum amount is Rs $_minDepositAmount',
+                          ),
                         ),
                       );
                     }

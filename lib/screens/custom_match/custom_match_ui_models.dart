@@ -327,7 +327,7 @@ CustomMatchUiModel matchFromApi({
       ? (raw['resultClaims'] as List)
       : [];
   final resultClaims = resultClaimsRaw.map((claim) {
-    final claimMap = claim is Map ? Map<String, dynamic>.from(claim as Map) : <String, dynamic>{};
+    final claimMap = claim is Map ? Map<String, dynamic>.from(claim) : <String, dynamic>{};
     final submitter = claimMap['submitter'] is Map
         ? Map<String, dynamic>.from(claimMap['submitter'] as Map)
         : <String, dynamic>{};
@@ -421,4 +421,5 @@ CustomMatchUiModel matchFromApi({
     resultClaims: resultClaims,
   );
 }
+
 

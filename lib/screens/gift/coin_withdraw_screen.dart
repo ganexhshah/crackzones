@@ -327,3 +327,4 @@ class _CoinWithdrawScreenState extends State<CoinWithdrawScreen> {
     );
   }
 }
+

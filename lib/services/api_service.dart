@@ -2,14 +2,12 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class _ApiCacheEntry {
-  const _ApiCacheEntry({
-    required this.data,
-    required this.expiresAt,
-  });
+  const _ApiCacheEntry({required this.data, required this.expiresAt});
 
   final Map<String, dynamic> data;
   final DateTime expiresAt;
@@ -24,18 +22,27 @@ class ApiService {
     'API_BASE_URL',
     defaultValue: '',
   );
-  static const String _localBaseUrl = 'http://192.168.18.13:3001/api';
+  static const String _androidEmulatorBaseUrl = 'http://10.0.2.2:3001/api';
+  static const String _localhostBaseUrl = 'http://127.0.0.1:3001/api';
   static const List<String> _reportFallbackBaseUrls = [
-    'http://192.168.18.13:3001/api',
-    'http://10.0.2.2:3001/api',
-    'http://127.0.0.1:3001/api',
+    _androidEmulatorBaseUrl,
+    _localhostBaseUrl,
+    'http://localhost:3001/api',
   ];
   static const String _productionBaseUrl = 'https://app.crackzones.xyz/api';
+  static const FlutterSecureStorage _secureStorage = FlutterSecureStorage();
   static final Map<String, _ApiCacheEntry> _responseCache = {};
+  static String get _localBaseUrl {
+    if (kIsWeb) return _localhostBaseUrl;
+    return Platform.isAndroid ? _androidEmulatorBaseUrl : _localhostBaseUrl;
+  }
+
   static String get baseUrl {
     final override = _apiBaseUrlOverride.trim();
     if (override.isNotEmpty) return override;
-    if (kDebugMode) return _localBaseUrl;
+    if (kDebugMode) {
+      return _localBaseUrl;
+    }
     return _appEnv.toLowerCase() == 'prod' ? _productionBaseUrl : _localBaseUrl;
   }
 
@@ -83,18 +90,70 @@ class ApiService {
   }
 
   static Future<String?> getToken() async {
+    if (kIsWeb) {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token')?.trim();
+      return (token == null || token.isEmpty) ? null : token;
+    }
+    final token = (await _secureStorage.read(key: 'auth_token'))?.trim();
+    if (token != null && token.isNotEmpty) {
+      return token;
+    }
+    // Migration path for older installs.
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('auth_token');
+    final legacyToken = prefs.getString('auth_token')?.trim();
+    if (legacyToken != null && legacyToken.isNotEmpty) {
+      await _secureStorage.write(key: 'auth_token', value: legacyToken);
+      await prefs.remove('auth_token');
+      return legacyToken;
+    }
+    return null;
   }
 
   static Future<void> saveToken(String token) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('auth_token', token);
+    final normalized = token.trim();
+    if (normalized.isEmpty) return;
+    if (kIsWeb) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('auth_token', normalized);
+      return;
+    }
+    await _secureStorage.write(key: 'auth_token', value: normalized);
   }
 
   static Future<void> clearToken() async {
+    if (kIsWeb) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('auth_token');
+      return;
+    }
+    await _secureStorage.delete(key: 'auth_token');
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('auth_token');
+  }
+
+  static Map<String, String> _jsonHeadersWithAuth(String? token) {
+    final headers = <String, String>{'Content-Type': 'application/json'};
+    final normalized = token?.trim();
+    if (normalized != null && normalized.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $normalized';
+    }
+    return headers;
+  }
+
+  static Future<http.MultipartFile> _multipartFileFromInput({
+    required String fieldName,
+    String? path,
+    List<int>? bytes,
+    required String filename,
+  }) async {
+    if (bytes != null && bytes.isNotEmpty) {
+      return http.MultipartFile.fromBytes(fieldName, bytes, filename: filename);
+    }
+    if (path != null && path.trim().isNotEmpty) {
+      return http.MultipartFile.fromPath(fieldName, path.trim());
+    }
+    throw ArgumentError('Either path or bytes must be provided.');
   }
 
   static Future<Map<String, dynamic>> _handleRequest(
@@ -110,7 +169,7 @@ class ApiService {
       if (response.statusCode >= 400) {
         _debugLog('Response URL: ${response.request?.url}');
       }
-      _debugLog('Response body: ${response.body}');
+      _debugLog('Response body length: ${response.body.length}');
 
       final contentType = response.headers['content-type'] ?? '';
       final isJson = contentType.toLowerCase().contains('application/json');
@@ -303,7 +362,8 @@ class ApiService {
         Uri.parse('$baseUrl/user/profile'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
+          if (token != null && token.isNotEmpty)
+            'Authorization': 'Bearer $token',
         },
       ),
     );
@@ -316,7 +376,8 @@ class ApiService {
         Uri.parse('$baseUrl/user/profile/$userId'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
+          if (token != null && token.isNotEmpty)
+            'Authorization': 'Bearer $token',
         },
       ),
     );
@@ -355,7 +416,8 @@ class ApiService {
         Uri.parse('$baseUrl/user/profile'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
+          if (token != null && token.isNotEmpty)
+            'Authorization': 'Bearer $token',
         },
         body: jsonEncode({'name': name, 'phone': phone}),
       ),
@@ -369,7 +431,8 @@ class ApiService {
         Uri.parse('$baseUrl/wallet/balance'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
+          if (token != null && token.isNotEmpty)
+            'Authorization': 'Bearer $token',
         },
       ),
     );
@@ -382,7 +445,8 @@ class ApiService {
         Uri.parse('$baseUrl/v1/wallet/ledger?limit=$limit'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
+          if (token != null && token.isNotEmpty)
+            'Authorization': 'Bearer $token',
         },
       ),
     );
@@ -406,7 +470,8 @@ class ApiService {
         Uri.parse('$baseUrl/tournaments/$tournamentId'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
+          if (token != null && token.isNotEmpty)
+            'Authorization': 'Bearer $token',
         },
       ),
     );
@@ -421,7 +486,8 @@ class ApiService {
         Uri.parse('$baseUrl/tournaments/$tournamentId/lobby'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
+          if (token != null && token.isNotEmpty)
+            'Authorization': 'Bearer $token',
         },
       ),
     );
@@ -434,7 +500,8 @@ class ApiService {
         Uri.parse('$baseUrl/tournaments/alerts'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
+          if (token != null && token.isNotEmpty)
+            'Authorization': 'Bearer $token',
         },
       ),
     );
@@ -449,7 +516,8 @@ class ApiService {
         Uri.parse('$baseUrl/tournaments/join'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
+          if (token != null && token.isNotEmpty)
+            'Authorization': 'Bearer $token',
         },
         body: jsonEncode({'tournamentId': tournamentId}),
       ),
@@ -463,7 +531,8 @@ class ApiService {
         Uri.parse('$baseUrl/user/game-ids'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
+          if (token != null && token.isNotEmpty)
+            'Authorization': 'Bearer $token',
         },
       ),
     );
@@ -480,7 +549,8 @@ class ApiService {
         Uri.parse('$baseUrl/user/game-ids'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
+          if (token != null && token.isNotEmpty)
+            'Authorization': 'Bearer $token',
         },
         body: jsonEncode({
           'gameName': gameName,
@@ -499,7 +569,8 @@ class ApiService {
         Uri.parse('$baseUrl/user/game-ids?id=$id'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
+          if (token != null && token.isNotEmpty)
+            'Authorization': 'Bearer $token',
         },
       ),
     );
@@ -516,7 +587,8 @@ class ApiService {
         Uri.parse('$baseUrl/user/profile-setup'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
+          if (token != null && token.isNotEmpty)
+            'Authorization': 'Bearer $token',
         },
         body: jsonEncode({
           'gameName': gameName,
@@ -537,7 +609,8 @@ class ApiService {
         Uri.parse('$baseUrl/user/change-password'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
+          if (token != null && token.isNotEmpty)
+            'Authorization': 'Bearer $token',
         },
         body: jsonEncode({
           'currentPassword': currentPassword,
@@ -554,7 +627,8 @@ class ApiService {
         Uri.parse('$baseUrl/user/delete-account'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
+          if (token != null && token.isNotEmpty)
+            'Authorization': 'Bearer $token',
         },
       ),
     );
@@ -571,10 +645,69 @@ class ApiService {
     );
   }
 
+  static Future<Map<String, dynamic>> createFonepaySession({
+    required double amount,
+  }) async {
+    final token = await getToken();
+    return _handleRequest(
+      () => http.post(
+        Uri.parse('$baseUrl/wallet/fonepay/session'),
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null && token.isNotEmpty)
+            'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'amount': amount}),
+      ),
+    );
+  }
+
+  static Future<Map<String, dynamic>> confirmFonepayPayment({
+    required String transactionId,
+    required Map<String, dynamic> paymentResult,
+  }) async {
+    final token = await getToken();
+    return _handleRequest(
+      () => http.post(
+        Uri.parse('$baseUrl/wallet/fonepay/confirm'),
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null && token.isNotEmpty)
+            'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'transactionId': transactionId,
+          'paymentResult': paymentResult,
+        }),
+      ),
+    );
+  }
+
+  static Future<Map<String, dynamic>> getFonepayStatus({
+    required String transactionId,
+  }) async {
+    final token = await getToken();
+    final uri = Uri.parse(
+      '$baseUrl/wallet/fonepay/status',
+    ).replace(queryParameters: {'transactionId': transactionId});
+    return _handleRequest(
+      () => http.get(
+        uri,
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null && token.isNotEmpty)
+            'Authorization': 'Bearer $token',
+        },
+      ),
+    );
+  }
+
   static Future<Map<String, dynamic>> submitDeposit({
     required double amount,
     required String method,
-    required String screenshotPath,
+    String? screenshotPath,
+    List<int>? screenshotBytes,
+    String screenshotFilename = 'deposit-proof.jpg',
   }) async {
     try {
       final token = await getToken();
@@ -583,18 +716,25 @@ class ApiService {
         Uri.parse('$baseUrl/wallet/deposit'),
       );
 
-      request.headers['Authorization'] = 'Bearer $token';
+      if (token != null && token.isNotEmpty) {
+        request.headers['Authorization'] = 'Bearer $token';
+      }
       request.fields['amount'] = amount.toString();
       request.fields['method'] = method;
       request.files.add(
-        await http.MultipartFile.fromPath('screenshot', screenshotPath),
+        await _multipartFileFromInput(
+          fieldName: 'screenshot',
+          path: screenshotPath,
+          bytes: screenshotBytes,
+          filename: screenshotFilename,
+        ),
       );
 
       final streamedResponse = await request.send().timeout(timeout);
       final response = await http.Response.fromStream(streamedResponse);
 
       _debugLog('Deposit response status: ${response.statusCode}');
-      _debugLog('Deposit response body: ${response.body}');
+      _debugLog('Deposit response body length: ${response.body.length}');
 
       return jsonDecode(response.body);
     } catch (e) {
@@ -615,7 +755,8 @@ class ApiService {
         Uri.parse('$baseUrl/wallet/withdraw'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
+          if (token != null && token.isNotEmpty)
+            'Authorization': 'Bearer $token',
         },
         body: jsonEncode({
           'amount': amount,
@@ -634,13 +775,18 @@ class ApiService {
         Uri.parse('$baseUrl/wallet/transactions'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
+          if (token != null && token.isNotEmpty)
+            'Authorization': 'Bearer $token',
         },
       ),
     );
   }
 
-  static Future<Map<String, dynamic>> uploadAvatar(String imagePath) async {
+  static Future<Map<String, dynamic>> uploadAvatar({
+    String? imagePath,
+    List<int>? imageBytes,
+    String filename = 'avatar.jpg',
+  }) async {
     try {
       final token = await getToken();
       final request = http.MultipartRequest(
@@ -648,14 +794,23 @@ class ApiService {
         Uri.parse('$baseUrl/user/upload-avatar'),
       );
 
-      request.headers['Authorization'] = 'Bearer $token';
-      request.files.add(await http.MultipartFile.fromPath('avatar', imagePath));
+      if (token != null && token.isNotEmpty) {
+        request.headers['Authorization'] = 'Bearer $token';
+      }
+      request.files.add(
+        await _multipartFileFromInput(
+          fieldName: 'avatar',
+          path: imagePath,
+          bytes: imageBytes,
+          filename: filename,
+        ),
+      );
 
       final streamedResponse = await request.send().timeout(timeout);
       final response = await http.Response.fromStream(streamedResponse);
 
       _debugLog('Upload response status: ${response.statusCode}');
-      _debugLog('Upload response body: ${response.body}');
+      _debugLog('Upload response body length: ${response.body.length}');
 
       return jsonDecode(response.body);
     } catch (e) {
@@ -676,7 +831,8 @@ class ApiService {
         uri,
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
+          if (token != null && token.isNotEmpty)
+            'Authorization': 'Bearer $token',
         },
       ),
     );
@@ -700,7 +856,8 @@ class ApiService {
         Uri.parse('$baseUrl/custom-matches'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
+          if (token != null && token.isNotEmpty)
+            'Authorization': 'Bearer $token',
         },
         body: jsonEncode({
           'roomType': roomType,
@@ -725,7 +882,8 @@ class ApiService {
         Uri.parse('$baseUrl/custom-matches/created'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
+          if (token != null && token.isNotEmpty)
+            'Authorization': 'Bearer $token',
         },
       ),
     );
@@ -738,7 +896,8 @@ class ApiService {
         Uri.parse('$baseUrl/custom-matches/$matchId/join'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
+          if (token != null && token.isNotEmpty)
+            'Authorization': 'Bearer $token',
         },
       ),
     );
@@ -759,7 +918,8 @@ class ApiService {
         ),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
+          if (token != null && token.isNotEmpty)
+            'Authorization': 'Bearer $token',
         },
         body: jsonEncode({
           'action': accepted ? 'accept' : 'reject',
@@ -777,24 +937,34 @@ class ApiService {
         Uri.parse('$baseUrl/custom-matches/$matchId/cancel'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
+          if (token != null && token.isNotEmpty)
+            'Authorization': 'Bearer $token',
         },
       ),
     );
   }
 
   static Future<Map<String, dynamic>> uploadCustomMatchProofImage(
-    String imagePath,
-  ) async {
+    String? imagePath, {
+    List<int>? imageBytes,
+    String filename = 'proof.jpg',
+  }) async {
     try {
       final token = await getToken();
       final request = http.MultipartRequest(
         'POST',
         Uri.parse('$baseUrl/custom-matches/proof-upload'),
       );
-      request.headers['Authorization'] = 'Bearer $token';
+      if (token != null && token.isNotEmpty) {
+        request.headers['Authorization'] = 'Bearer $token';
+      }
       request.files.add(
-        await http.MultipartFile.fromPath('screenshot', imagePath),
+        await _multipartFileFromInput(
+          fieldName: 'screenshot',
+          path: imagePath,
+          bytes: imageBytes,
+          filename: filename,
+        ),
       );
       final streamedResponse = await request.send().timeout(timeout);
       final response = await http.Response.fromStream(streamedResponse);
@@ -815,7 +985,8 @@ class ApiService {
         Uri.parse('$baseUrl/custom-matches/$matchId/result'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
+          if (token != null && token.isNotEmpty)
+            'Authorization': 'Bearer $token',
         },
         body: jsonEncode({'winnerUserId': winnerUserId, 'proofUrl': proofUrl}),
       ),
@@ -834,7 +1005,8 @@ class ApiService {
         uri,
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
+          if (token != null && token.isNotEmpty)
+            'Authorization': 'Bearer $token',
         },
       ),
     );
@@ -851,7 +1023,8 @@ class ApiService {
         Uri.parse('$baseUrl/admin/custom-matches/results/$submissionId/review'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
+          if (token != null && token.isNotEmpty)
+            'Authorization': 'Bearer $token',
         },
         body: jsonEncode({
           'action': approved ? 'accept' : 'reject',
@@ -868,7 +1041,8 @@ class ApiService {
         Uri.parse('$baseUrl/custom-matches/history'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
+          if (token != null && token.isNotEmpty)
+            'Authorization': 'Bearer $token',
         },
       ),
     );
@@ -881,7 +1055,8 @@ class ApiService {
         Uri.parse('$baseUrl/user/stats'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
+          if (token != null && token.isNotEmpty)
+            'Authorization': 'Bearer $token',
         },
       ),
     );
@@ -894,7 +1069,8 @@ class ApiService {
         Uri.parse('$baseUrl/settings'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
+          if (token != null && token.isNotEmpty)
+            'Authorization': 'Bearer $token',
         },
       ),
     );
@@ -910,7 +1086,8 @@ class ApiService {
         uri,
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
+          if (token != null && token.isNotEmpty)
+            'Authorization': 'Bearer $token',
         },
       ),
     );
@@ -923,7 +1100,8 @@ class ApiService {
         Uri.parse('$baseUrl/custom-matches/alerts'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
+          if (token != null && token.isNotEmpty)
+            'Authorization': 'Bearer $token',
         },
       ),
     );
@@ -936,7 +1114,8 @@ class ApiService {
         Uri.parse('$baseUrl/notifications/broadcast'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
+          if (token != null && token.isNotEmpty)
+            'Authorization': 'Bearer $token',
         },
       ),
     );
@@ -951,7 +1130,8 @@ class ApiService {
         Uri.parse('$baseUrl/notifications/broadcast/dismiss'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
+          if (token != null && token.isNotEmpty)
+            'Authorization': 'Bearer $token',
         },
         body: jsonEncode({'broadcastId': broadcastId}),
       ),
@@ -971,7 +1151,8 @@ class ApiService {
         uri,
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
+          if (token != null && token.isNotEmpty)
+            'Authorization': 'Bearer $token',
         },
       ),
     );
@@ -988,7 +1169,8 @@ class ApiService {
         Uri.parse('$baseUrl/notifications/read'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
+          if (token != null && token.isNotEmpty)
+            'Authorization': 'Bearer $token',
         },
         body: jsonEncode({
           if (notificationId != null && notificationId.isNotEmpty)
@@ -1033,31 +1215,27 @@ class ApiService {
     bool forceRefresh = false,
   }) async {
     final token = await getToken();
-    final query = {
-      if (search.isNotEmpty) 'search': search,
-      'filter': filter,
-    };
+    final query = {if (search.isNotEmpty) 'search': search, 'filter': filter};
     final cacheKey = _cacheKey('gift/users', query);
     if (!forceRefresh) {
       final cached = _getCachedResponse(cacheKey);
       if (cached != null) return cached;
     }
 
-    final uri = Uri.parse('$baseUrl/gift/users').replace(queryParameters: query);
+    final uri = Uri.parse(
+      '$baseUrl/gift/users',
+    ).replace(queryParameters: query);
     final response = await _handleRequest(
       () => http.get(
         uri,
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
+          if (token != null && token.isNotEmpty)
+            'Authorization': 'Bearer $token',
         },
       ),
     );
-    _setCachedResponse(
-      cacheKey,
-      response,
-      ttl: const Duration(seconds: 30),
-    );
+    _setCachedResponse(cacheKey, response, ttl: const Duration(seconds: 30));
     return response;
   }
 
@@ -1073,7 +1251,8 @@ class ApiService {
         Uri.parse('$baseUrl/gift/send'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
+          if (token != null && token.isNotEmpty)
+            'Authorization': 'Bearer $token',
         },
         body: jsonEncode({
           'recipientId': recipientId,
@@ -1106,15 +1285,12 @@ class ApiService {
         Uri.parse('$baseUrl/gift/balance-sources'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
+          if (token != null && token.isNotEmpty)
+            'Authorization': 'Bearer $token',
         },
       ),
     );
-    _setCachedResponse(
-      cacheKey,
-      response,
-      ttl: const Duration(seconds: 20),
-    );
+    _setCachedResponse(cacheKey, response, ttl: const Duration(seconds: 20));
     return response;
   }
 
@@ -1125,7 +1301,8 @@ class ApiService {
         Uri.parse('$baseUrl/gift/history'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
+          if (token != null && token.isNotEmpty)
+            'Authorization': 'Bearer $token',
         },
       ),
     );
@@ -1147,15 +1324,12 @@ class ApiService {
         Uri.parse('$baseUrl/rewards/status'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
+          if (token != null && token.isNotEmpty)
+            'Authorization': 'Bearer $token',
         },
       ),
     );
-    _setCachedResponse(
-      cacheKey,
-      response,
-      ttl: const Duration(seconds: 30),
-    );
+    _setCachedResponse(cacheKey, response, ttl: const Duration(seconds: 30));
     return response;
   }
 
@@ -1166,7 +1340,8 @@ class ApiService {
         Uri.parse('$baseUrl/rewards/daily-claim'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
+          if (token != null && token.isNotEmpty)
+            'Authorization': 'Bearer $token',
         },
       ),
     );
@@ -1185,7 +1360,8 @@ class ApiService {
         Uri.parse('$baseUrl/rewards/spin'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
+          if (token != null && token.isNotEmpty)
+            'Authorization': 'Bearer $token',
         },
         body: jsonEncode({
           if (clientSeed != null && clientSeed.isNotEmpty)
@@ -1208,7 +1384,8 @@ class ApiService {
         Uri.parse('$baseUrl/rewards/withdraw-coins'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
+          if (token != null && token.isNotEmpty)
+            'Authorization': 'Bearer $token',
         },
         body: jsonEncode({'coins': coins}),
       ),
@@ -1226,7 +1403,8 @@ class ApiService {
         Uri.parse('$baseUrl/rewards/withdraw-history'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
+          if (token != null && token.isNotEmpty)
+            'Authorization': 'Bearer $token',
         },
       ),
     );
@@ -1237,10 +1415,7 @@ class ApiService {
   // -------------------------------
   static Future<Map<String, String>> _authJsonHeaders() async {
     final token = await getToken();
-    return {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer $token',
-    };
+    return _jsonHeadersWithAuth(token);
   }
 
   static Future<Map<String, dynamic>> getV1Matches({
@@ -1595,17 +1770,26 @@ class ApiService {
   }
 
   static Future<Map<String, dynamic>> uploadV1MatchProofImage(
-    String imagePath,
-  ) async {
+    String? imagePath, {
+    List<int>? imageBytes,
+    String filename = 'proof.jpg',
+  }) async {
     final token = await getToken();
     try {
       final request = http.MultipartRequest(
         'POST',
         Uri.parse('$baseUrlV1/matches/proof-upload'),
       );
-      request.headers['Authorization'] = 'Bearer $token';
+      if (token != null && token.isNotEmpty) {
+        request.headers['Authorization'] = 'Bearer $token';
+      }
       request.files.add(
-        await http.MultipartFile.fromPath('screenshot', imagePath),
+        await _multipartFileFromInput(
+          fieldName: 'screenshot',
+          path: imagePath,
+          bytes: imageBytes,
+          filename: filename,
+        ),
       );
       final streamed = await request.send();
       final response = await http.Response.fromStream(streamed);

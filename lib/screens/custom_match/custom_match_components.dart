@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -447,7 +447,7 @@ class CustomMatchCard extends StatelessWidget {
                         ? Image.asset(
                             'assets/freefire2.jpg',
                             fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Icon(
+                            errorBuilder: (context, error, stackTrace) => Icon(
                               Icons.sports_esports_rounded,
                               color: Colors.orange[900],
                             ),
@@ -649,3 +649,5 @@ class CustomMatchCard extends StatelessWidget {
     );
   }
 }
+
+

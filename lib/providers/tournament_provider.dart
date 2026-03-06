@@ -22,7 +22,7 @@ class TournamentProvider with ChangeNotifier {
       }
     } catch (e) {
       _error = e.toString();
-      print('Load tournaments error: $e');
+      debugPrint('Load tournaments error: $e');
     }
     
     _isLoading = false;
@@ -48,3 +48,5 @@ class TournamentProvider with ChangeNotifier {
     }
   }
 }
+
+

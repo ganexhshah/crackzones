@@ -6,15 +6,18 @@ import 'api_service.dart';
 class GoogleAuthService {
   static const String _googleWebClientId = String.fromEnvironment(
     'GOOGLE_WEB_CLIENT_ID',
-    defaultValue:
-        '678569739060-g59eu4uo402cmbactl80b4b7b9pti7qm.apps.googleusercontent.com',
+    defaultValue: '',
+  );
+  static const String _googleServerClientId = String.fromEnvironment(
+    'GOOGLE_SERVER_CLIENT_ID',
+    defaultValue: '',
   );
 
   static final GoogleSignIn _googleSignIn = GoogleSignIn(
     scopes: ['openid', 'email'],
-    clientId: _googleWebClientId,
+    clientId: _googleWebClientId.isEmpty ? null : _googleWebClientId,
     serverClientId:
-        '678569739060-g59eu4uo402cmbactl80b4b7b9pti7qm.apps.googleusercontent.com',
+        _googleServerClientId.isEmpty ? null : _googleServerClientId,
   );
 
   static Future<Map<String, dynamic>?> signInWithGoogle() async {
@@ -77,3 +80,4 @@ class GoogleAuthService {
     await ApiService.clearToken();
   }
 }
+

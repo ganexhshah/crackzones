@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
-import 'dart:io';
 
 import '../../services/api_service.dart';
 import 'custom_match_reports_screen.dart';
@@ -20,6 +20,7 @@ class _CustomMatchResultScreenState extends State<CustomMatchResultScreen> {
   late CustomMatchUiModel _match;
   String? _selectedWinnerUserId;
   String? _proofPath;
+  Uint8List? _proofBytes;
   String? _proofUrl;
   bool _submitting = false;
   bool _refreshing = false;
@@ -81,7 +82,11 @@ class _CustomMatchResultScreenState extends State<CustomMatchResultScreen> {
       imageQuality: 75,
     );
     if (x == null) return;
-    setState(() => _proofPath = x.path);
+    final bytes = await x.readAsBytes();
+    setState(() {
+      _proofPath = x.path;
+      _proofBytes = bytes;
+    });
   }
 
   Future<void> _submitResult() async {
@@ -99,7 +104,14 @@ class _CustomMatchResultScreenState extends State<CustomMatchResultScreen> {
     setState(() => _submitting = true);
     String finalProofUrl = _proofUrl ?? '';
     if (_proofPath != null && _proofPath!.isNotEmpty) {
-      final upload = await ApiService.uploadV1MatchProofImage(_proofPath!);
+      final upload = await ApiService.uploadV1MatchProofImage(
+        kIsWeb ? null : _proofPath,
+        imageBytes: _proofBytes,
+        filename:
+            (_proofPath ?? '').replaceAll('\\', '/').split('/').last.isEmpty
+                ? 'proof.jpg'
+                : (_proofPath ?? '').replaceAll('\\', '/').split('/').last,
+      );
       if (!mounted) return;
       if (upload['error'] != null) {
         setState(() => _submitting = false);
@@ -133,6 +145,7 @@ class _CustomMatchResultScreenState extends State<CustomMatchResultScreen> {
       _submittedLocalWaiting = true;
       _resubmitMode = false;
       _proofPath = null; // Clear local proof path
+      _proofBytes = null;
       _selectedWinnerUserId = null; // Clear selection
     });
     _toast('Result submitted successfully!');
@@ -288,18 +301,26 @@ class _CustomMatchResultScreenState extends State<CustomMatchResultScreen> {
                   ),
                   const SizedBox(height: 10),
                   ...reasons.map(
-                    (item) => RadioListTile<String>(
-                      dense: true,
-                      value: item['label'].toString(),
-                      groupValue: selectedReason,
-                      onChanged: (value) =>
-                          setSheetState(() => selectedReason = value),
-                      title: Text(item['label'].toString()),
-                      secondary: Icon(
-                        item['icon'] as IconData,
-                        color: Colors.red[700],
-                      ),
-                    ),
+                    (item) {
+                      final label = item['label'].toString();
+                      final selected = selectedReason == label;
+                      return ListTile(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        onTap: () => setSheetState(() => selectedReason = label),
+                        leading: Icon(
+                          selected
+                              ? Icons.radio_button_checked
+                              : Icons.radio_button_unchecked,
+                          color: selected ? Colors.red[700] : Colors.grey[500],
+                        ),
+                        title: Text(label),
+                        trailing: Icon(
+                          item['icon'] as IconData,
+                          color: Colors.red[700],
+                        ),
+                      );
+                    },
                   ),
                   const SizedBox(height: 8),
                   SizedBox(
@@ -322,6 +343,7 @@ class _CustomMatchResultScreenState extends State<CustomMatchResultScreen> {
       },
     );
     if (chooseReason != true || selectedReason == null) return;
+    if (!mounted) return;
 
     _reportDetailsCtrl.clear();
     final addMore = await showDialog<bool>(
@@ -673,11 +695,11 @@ class _CustomMatchResultScreenState extends State<CustomMatchResultScreen> {
           fit: StackFit.expand,
           children: [
             local != null && local.isNotEmpty
-                ? Image.file(File(local), fit: BoxFit.cover)
+                ? _buildProofImage(localPath: local, fit: BoxFit.cover)
                 : Image.network(
                     remote,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Center(
+                    errorBuilder: (context, error, stackTrace) => Center(
                       child: Text(
                         'Proof image available',
                         style: TextStyle(
@@ -738,10 +760,10 @@ class _CustomMatchResultScreenState extends State<CustomMatchResultScreen> {
               minScale: 0.5,
               maxScale: 4.0,
               child: localPath != null && localPath.isNotEmpty
-                  ? Image.file(File(localPath))
+                  ? _buildProofImage(localPath: localPath, fit: BoxFit.contain)
                   : Image.network(
                       remotePath,
-                      errorBuilder: (_, __, ___) => Center(
+                      errorBuilder: (context, error, stackTrace) => Center(
                         child: Text(
                           'Failed to load image',
                           style: TextStyle(color: Colors.white),
@@ -750,6 +772,25 @@ class _CustomMatchResultScreenState extends State<CustomMatchResultScreen> {
                     ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProofImage({
+    required String localPath,
+    BoxFit fit = BoxFit.cover,
+  }) {
+    if (_proofPath == localPath && _proofBytes != null) {
+      return Image.memory(_proofBytes!, fit: fit);
+    }
+    return Image.network(
+      localPath,
+      fit: fit,
+      errorBuilder: (context, error, stackTrace) => Center(
+        child: Text(
+          'Proof image selected',
+          style: TextStyle(color: Colors.grey[700], fontWeight: FontWeight.w600),
         ),
       ),
     );
@@ -821,7 +862,7 @@ class _CustomMatchResultScreenState extends State<CustomMatchResultScreen> {
               border: Border.all(color: Colors.orange[300]!, width: 2),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.orange.withOpacity(0.1),
+                  color: Colors.orange.withValues(alpha: 0.1),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),
@@ -1083,7 +1124,7 @@ class _CustomMatchResultScreenState extends State<CustomMatchResultScreen> {
                             Image.network(
                               submission.proofUrl,
                               fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Center(
+                              errorBuilder: (context, error, stackTrace) => Center(
                                 child: Icon(Icons.image, color: Colors.grey[400]),
                               ),
                             ),
@@ -1325,11 +1366,11 @@ class _CustomMatchResultScreenState extends State<CustomMatchResultScreen> {
                   fit: StackFit.expand,
                   children: [
                     _proofPath != null
-                        ? Image.file(File(_proofPath!), fit: BoxFit.cover)
+                        ? _buildProofImage(localPath: _proofPath!, fit: BoxFit.cover)
                         : Image.network(
                             _proofUrl!,
                             fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Center(
+                            errorBuilder: (context, error, stackTrace) => Center(
                               child: Text(
                                 'Proof image selected',
                                 style: TextStyle(
@@ -1478,11 +1519,20 @@ class _CustomMatchResultScreenState extends State<CustomMatchResultScreen> {
                 ),
               ),
             ),
-            Radio<String>(
-              value: userId,
-              groupValue: _selectedWinnerUserId,
-              onChanged: (v) => setState(() => _selectedWinnerUserId = v),
-              activeColor: Colors.yellow[700],
+            InkWell(
+              borderRadius: BorderRadius.circular(20),
+              onTap: () => setState(() => _selectedWinnerUserId = userId),
+              child: Padding(
+                padding: const EdgeInsets.all(4),
+                child: Icon(
+                  _selectedWinnerUserId == userId
+                      ? Icons.radio_button_checked
+                      : Icons.radio_button_unchecked,
+                  color: _selectedWinnerUserId == userId
+                      ? Colors.yellow[700]
+                      : Colors.grey[500],
+                ),
+              ),
             ),
           ],
         ),
@@ -1499,8 +1549,6 @@ class _CustomMatchResultScreenState extends State<CustomMatchResultScreen> {
     // Get basic info from match data
     final userName = _nameById(userId);
     final userAvatar = _avatarById(userId);
-    final isNetwork = userAvatar.startsWith('http');
-
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.white,
@@ -1897,3 +1945,5 @@ class _CustomMatchResultScreenState extends State<CustomMatchResultScreen> {
     );
   }
 }
+
+

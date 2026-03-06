@@ -121,3 +121,4 @@ class InAppChatPopupService {
     _currentUserId = '';
   }
 }
+

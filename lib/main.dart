@@ -13,18 +13,6 @@ import 'providers/tournament_provider.dart';
 import 'providers/wallet_provider.dart';
 import 'screens/splash_screen.dart';
 
-String _pushPlatform() {
-  if (kIsWeb) return 'web';
-  switch (defaultTargetPlatform) {
-    case TargetPlatform.iOS:
-      return 'ios';
-    case TargetPlatform.android:
-      return 'android';
-    default:
-      return 'android';
-  }
-}
-
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   if (kIsWeb) return;
   await Firebase.initializeApp();
@@ -43,11 +31,6 @@ Future<void> _initPushNotifications() async {
     final token = await messaging.getToken();
     debugPrint('FCM Token: $token');
     // Don't register token here - will be registered after login in AuthProvider
-
-    messaging.onTokenRefresh.listen((newToken) async {
-      debugPrint('FCM Token Refresh: $newToken');
-      // Token will be registered after login in AuthProvider
-    });
 
     FirebaseMessaging.onMessage.listen((message) {
       debugPrint('FCM foreground message: ${message.messageId}');
@@ -141,3 +124,4 @@ class _MyAppState extends State<MyApp> {
     );
   }
 }
+

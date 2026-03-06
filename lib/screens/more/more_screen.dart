@@ -7,7 +7,6 @@ import '../activities/activities_screen.dart';
 import '../auth/login_screen.dart';
 import '../custom_match/custom_match_reports_screen.dart';
 import '../wallet/wallet_reports_screen.dart';
-import '../shop/game_shop_screen.dart';
 import 'edit_profile_screen.dart';
 import 'privacy_security_screen.dart';
 import 'help_support_screen.dart';
@@ -169,17 +168,6 @@ class _MoreScreenState extends State<MoreScreen> {
                           ]),
                           SizedBox(height: 16),
                           _buildMenuSection('App', [
-                            {
-                              'icon': Icons.shopping_bag_outlined,
-                              'title': 'Game Shop',
-                              'subtitle': 'Open mini app shop',
-                              'onTap': () => Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const GameShopScreen(),
-                                ),
-                              ),
-                            },
                             {
                               'icon': Icons.info_outline,
                               'title': 'About',

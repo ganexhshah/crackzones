@@ -523,3 +523,4 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
     );
   }
 }
+

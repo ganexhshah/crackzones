@@ -38,7 +38,7 @@ class _GiftHistoryScreenState extends State<GiftHistoryScreen> {
         });
       }
     } catch (e) {
-      print('Error loading gift history: $e');
+      debugPrint('Error loading gift history: $e');
       setState(() {
         _giftHistory = [];
         _isLoading = false;
@@ -746,3 +746,5 @@ class _GiftHistoryScreenState extends State<GiftHistoryScreen> {
     );
   }
 }
+
+

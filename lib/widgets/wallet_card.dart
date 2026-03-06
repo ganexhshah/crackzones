@@ -218,7 +218,7 @@ class WalletCard extends StatelessWidget {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    '${balance.toStringAsFixed(0)}',
+                    balance.toStringAsFixed(0),
                     style: TextStyle(
                       fontSize: isCompact ? 28 : 32,
                       fontWeight: FontWeight.bold,
@@ -338,3 +338,4 @@ class WalletCard extends StatelessWidget {
     );
   }
 }
+

@@ -403,3 +403,4 @@ class _ViewProfileScreenState extends State<ViewProfileScreen> {
     );
   }
 }
+

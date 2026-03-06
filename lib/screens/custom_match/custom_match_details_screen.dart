@@ -197,48 +197,6 @@ class _CustomMatchDetailsScreenState extends State<CustomMatchDetailsScreen> {
     navigator.pop(true);
   }
 
-  Future<bool?> _showJoinRulesDialog() {
-    return showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Confirm Join'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Entry Fee: Rs ${_match.entryFee.toStringAsFixed(2)}',
-                style: const TextStyle(fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: 10),
-              Text('Room Type: ${_match.roomType == 'LONE_WOLF' ? 'Lone Wolf' : 'Custom Room'}'),
-              Text('Mode: ${_match.matchType}'),
-              Text('Rounds: ${_match.rounds}'),
-              Text('Default Coin: ${_match.defaultCoin}'),
-              const SizedBox(height: 8),
-              Text('Throwable Limit: ${_match.throwableLimit ? 'ON' : 'OFF'}'),
-              Text('Character Skill: ${_match.characterSkill ? 'ON' : 'OFF'}'),
-              Text('Headshot Mode: ${_match.headshotOnly ? 'ON' : 'OFF'}'),
-              Text('Gun Attributes: ${_match.gunAttributes ? 'ON' : 'OFF'}'),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            style: FilledButton.styleFrom(backgroundColor: Colors.yellow[700]),
-            child: const Text('Continue', style: TextStyle(color: Colors.black87)),
-          ),
-        ],
-      ),
-    );
-  }
-
   Future<void> _showInsufficientBalanceDialog(double need, double have) async {
     await showDialog<void>(
       context: context,
@@ -1262,3 +1220,4 @@ class _CustomMatchDetailsScreenState extends State<CustomMatchDetailsScreen> {
     );
   }
 }
+

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image_cropper/image_cropper.dart';
-import 'dart:io';
 import '../../providers/user_provider.dart';
 import '../../services/api_service.dart';
 import '../navigation/app_shell_screen.dart';
@@ -19,7 +19,8 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
   final _formKey = GlobalKey<FormState>();
   final _uidController = TextEditingController();
   final _gameNameController = TextEditingController();
-  File? _selectedImage;
+  XFile? _selectedImage;
+  Uint8List? _selectedImageBytes;
   bool _isUploading = false;
   final ImagePicker _picker = ImagePicker();
 
@@ -85,8 +86,11 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
           // Fallback: continue with original selected image if crop fails.
         }
 
+        final selected = XFile(cropped?.path ?? picked.path);
+        final bytes = await selected.readAsBytes();
         setState(() {
-          _selectedImage = File((cropped?.path ?? picked.path));
+          _selectedImage = selected;
+          _selectedImageBytes = bytes;
         });
         if (cropped == null && mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -97,7 +101,6 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
         }
       }
     } catch (e) {
-      print('Error picking image: $e');
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -118,7 +121,11 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
     try {
       // Upload avatar if selected
       if (_selectedImage != null) {
-        final result = await ApiService.uploadAvatar(_selectedImage!.path);
+        final result = await ApiService.uploadAvatar(
+          imagePath: kIsWeb ? null : _selectedImage!.path,
+          imageBytes: _selectedImageBytes,
+          filename: _selectedImage!.name,
+        );
         if (result['error'] != null) {
           throw Exception(result['error']);
         }
@@ -363,8 +370,8 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                                           ],
                                           image: _selectedImage != null
                                               ? DecorationImage(
-                                                  image: FileImage(
-                                                    _selectedImage!,
+                                                  image: MemoryImage(
+                                                    _selectedImageBytes!,
                                                   ),
                                                   fit: BoxFit.cover,
                                                 )
@@ -656,3 +663,4 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
     );
   }
 }
+

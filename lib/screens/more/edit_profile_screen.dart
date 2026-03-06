@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
-import 'dart:io';
 import '../../providers/user_provider.dart';
 import '../../services/api_service.dart';
 
@@ -16,7 +16,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
-  File? _selectedImage;
+  XFile? _selectedImage;
+  Uint8List? _selectedImageBytes;
   bool _isLoading = false;
   bool _isUploading = false;
   final ImagePicker _picker = ImagePicker();
@@ -51,8 +52,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       );
       
       if (image != null) {
+        final bytes = await image.readAsBytes();
         setState(() {
-          _selectedImage = File(image.path);
+          _selectedImage = image;
+          _selectedImageBytes = bytes;
         });
         
         // Upload immediately
@@ -73,7 +76,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     setState(() => _isUploading = true);
     
     try {
-      final result = await ApiService.uploadAvatar(_selectedImage!.path);
+      final result = await ApiService.uploadAvatar(
+        imagePath: kIsWeb ? null : _selectedImage!.path,
+        imageBytes: _selectedImageBytes,
+        filename: _selectedImage!.name,
+      );
       
       if (mounted) {
         if (result['error'] != null) {
@@ -205,9 +212,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             CircleAvatar(
               radius: 60,
               backgroundColor: Colors.yellow[100],
-              backgroundImage: _selectedImage != null
-                  ? FileImage(_selectedImage!)
-                  : (avatar != null ? NetworkImage(avatar) : null) as ImageProvider?,
+              backgroundImage:
+                  _selectedImageBytes != null
+                      ? MemoryImage(_selectedImageBytes!)
+                      : (avatar != null ? NetworkImage(avatar) : null)
+                          as ImageProvider?,
               child: (_selectedImage == null && avatar == null)
                   ? Icon(Icons.person, size: 60, color: Colors.yellow[700])
                   : null,
@@ -322,3 +331,4 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     );
   }
 }
+

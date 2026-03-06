@@ -38,7 +38,6 @@ class _TournamentDetailScreenState extends State<TournamentDetailScreen> {
   List<Map<String, dynamic>> _lobbyMatches = [];
   String? _tournamentRoomId;
   String? _tournamentRoomPassword;
-  String _tournamentStatus = '';
 
   @override
   void initState() {
@@ -59,7 +58,6 @@ class _TournamentDetailScreenState extends State<TournamentDetailScreen> {
     setState(() {
       _tournamentRoomId = (tournament['roomId'] ?? '').toString();
       _tournamentRoomPassword = (tournament['roomPassword'] ?? '').toString();
-      _tournamentStatus = (tournament['status'] ?? '').toString();
       // Update isRegistered from the API response
       final apiIsRegistered = tournament['isRegistered'] == true;
       if (apiIsRegistered) {
@@ -687,3 +685,4 @@ class _TournamentDetailScreenState extends State<TournamentDetailScreen> {
     );
   }
 }
+

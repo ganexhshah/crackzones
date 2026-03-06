@@ -93,10 +93,14 @@ class AuthProvider with ChangeNotifier {
 
       final profile = await ApiService.getProfile();
       if (profile['error'] != null || profile['user'] == null) {
+        final statusCode = profile['statusCode'] is int ? profile['statusCode'] as int : null;
+        final shouldClearToken = statusCode == 401 || statusCode == 403;
         _accountStatus = profile['accountStatus'] is Map<String, dynamic>
             ? profile['accountStatus'] as Map<String, dynamic>
             : null;
-        await ApiService.clearToken();
+        if (shouldClearToken) {
+          await ApiService.clearToken();
+        }
         _user = null;
         _isLoading = false;
         notifyListeners();
@@ -110,7 +114,6 @@ class AuthProvider with ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      await ApiService.clearToken();
       _user = null;
       _error = e.toString();
       _isLoading = false;
@@ -294,3 +297,4 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
   }
 }
+

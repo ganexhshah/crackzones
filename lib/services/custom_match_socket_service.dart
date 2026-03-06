@@ -31,6 +31,7 @@ class CustomMatchSocketService {
     'match.completed',
     'wallet.updated',
     'chat.message',
+    'chat.typing',
   ];
 
   io.Socket? _socket;
@@ -96,6 +97,16 @@ class CustomMatchSocketService {
       );
     });
 
+    socket.onDisconnect((_) {
+      _events.add(
+        const MatchSocketEvent(
+          type: 'socket.disconnected',
+          matchId: null,
+          payload: <String, dynamic>{},
+        ),
+      );
+    });
+
     _socket = socket;
     socket.connect();
   }
@@ -110,8 +121,20 @@ class CustomMatchSocketService {
     _socket?.emit('match:unsubscribe', <String, dynamic>{'matchId': matchId});
   }
 
+  void emitTyping({
+    required String matchId,
+    required bool isTyping,
+  }) {
+    if (matchId.trim().isEmpty) return;
+    _socket?.emit(
+      'chat:typing',
+      <String, dynamic>{'matchId': matchId, 'isTyping': isTyping},
+    );
+  }
+
   void dispose() {
     _socket?.dispose();
     _socket = null;
   }
 }
+

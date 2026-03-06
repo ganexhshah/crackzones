@@ -310,3 +310,4 @@ final List<Map<String, String>> _nepaliTerms = [
         'खाता सिर्जना गरेर तपाईंले यो कौशल-आधारित इ-स्पोर्ट्स प्लेटफर्म हो भन्ने बुझ्नुभएको, नेपाल कानून पालना गर्ने, सबै Terms स्वीकार गर्ने, र कानुनी रूपमा योग्य हुनुहुन्छ भन्ने पुष्टि गर्नुहुन्छ। All Rights Reserved © CrackZoneEsports Private Ltd.',
   },
 ];
+

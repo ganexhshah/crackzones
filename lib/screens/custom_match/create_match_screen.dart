@@ -451,7 +451,7 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
         // Loading overlay
         if (_submitting)
           Container(
-            color: Colors.black.withOpacity(0.5),
+            color: Colors.black.withValues(alpha: 0.5),
             child: const Center(
               child: Card(
                 child: Padding(
@@ -726,3 +726,4 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
     );
   }
 }
+

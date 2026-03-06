@@ -25,7 +25,7 @@ class WalletScreen extends StatefulWidget {
 }
 
 class _WalletScreenState extends State<WalletScreen> {
-  int _currentIndex = 3;
+  final int _currentIndex = 3;
   bool _showAddMoney = false;
   bool _showWithdraw = false;
   bool _showPayment = false;
@@ -2765,13 +2765,21 @@ class _WalletScreenState extends State<WalletScreen> {
                   ),
                   const SizedBox(height: 10),
                   ...reasons.map(
-                    (item) => RadioListTile<String>(
-                      dense: true,
-                      value: item,
-                      groupValue: selectedReason,
-                      onChanged: (v) => setSheetState(() => selectedReason = v),
-                      title: Text(item),
-                    ),
+                    (item) {
+                      final selected = selectedReason == item;
+                      return ListTile(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        onTap: () => setSheetState(() => selectedReason = item),
+                        leading: Icon(
+                          selected
+                              ? Icons.radio_button_checked
+                              : Icons.radio_button_unchecked,
+                          color: selected ? Colors.red[700] : Colors.grey[500],
+                        ),
+                        title: Text(item),
+                      );
+                    },
                   ),
                   const SizedBox(height: 8),
                   SizedBox(
@@ -2791,6 +2799,7 @@ class _WalletScreenState extends State<WalletScreen> {
       },
     );
     if (picked != true || selectedReason == null) return;
+    if (!mounted) return;
 
     final detailsCtrl = TextEditingController();
     final more = await showDialog<bool>(
@@ -2982,3 +2991,4 @@ class _WalletScreenState extends State<WalletScreen> {
     );
   }
 }
+

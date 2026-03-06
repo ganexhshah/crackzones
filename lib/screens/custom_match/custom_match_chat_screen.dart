@@ -1,9 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:socket_io_client/socket_io_client.dart' as io;
 
 import '../../services/api_service.dart';
+import '../../services/custom_match_socket_service.dart';
 import 'custom_match_components.dart';
 
 class CustomMatchChatScreen extends StatefulWidget {
@@ -28,7 +28,7 @@ class _CustomMatchChatScreenState extends State<CustomMatchChatScreen> {
   String? _myUserId;
   bool _loading = true;
   bool _socketConnected = false;
-  io.Socket? _socket;
+  StreamSubscription<MatchSocketEvent>? _socketSub;
   bool _isTypingEmitted = false;
   String? _typingUserId;
   DateTime? _typingAt;
@@ -44,8 +44,8 @@ class _CustomMatchChatScreenState extends State<CustomMatchChatScreen> {
   @override
   void dispose() {
     _stopTyping();
-    _socket?.emit('match:unsubscribe', {'matchId': widget.matchId});
-    _socket?.dispose();
+    CustomMatchSocketService.instance.unsubscribeMatch(widget.matchId);
+    _socketSub?.cancel();
     _typingTimer?.cancel();
     _ctrl.dispose();
     _scrollController.dispose();
@@ -141,70 +141,58 @@ class _CustomMatchChatScreenState extends State<CustomMatchChatScreen> {
   }
 
   Future<void> _initSocket() async {
-    if (_socket != null || _myUserId == null || _myUserId!.isEmpty) return;
+    if (_socketSub != null || _myUserId == null || _myUserId!.isEmpty) return;
     final token = await ApiService.getToken();
     if (token == null || token.isEmpty) return;
 
-    final socketBase = ApiService.baseUrl.replaceAll(RegExp(r'/api/?$'), '');
-    final s = io.io(
-      socketBase,
-      io.OptionBuilder()
-          .setTransports(['websocket'])
-          .disableAutoConnect()
-          .enableReconnection()
-          .setAuth({'token': 'Bearer $token'})
-          .build(),
-    );
+    await CustomMatchSocketService.instance.connect();
+    CustomMatchSocketService.instance.subscribeMatch(widget.matchId);
+    setState(() {
+      _socketConnected = CustomMatchSocketService.instance.isConnected;
+    });
 
-    s.onConnect((_) {
+    _socketSub = CustomMatchSocketService.instance.events.listen((event) {
       if (!mounted) return;
-      setState(() => _socketConnected = true);
-      s.emit('match:subscribe', {'matchId': widget.matchId});
-    });
-
-    s.onDisconnect((_) {
-      if (!mounted) return;
-      setState(() => _socketConnected = false);
-    });
-
-    s.on('chat.message', (payload) {
-      if (!mounted || payload is! Map) return;
-      final map = Map<String, dynamic>.from(payload);
-      if ((map['matchId'] ?? '').toString() != widget.matchId) return;
-      final message =
-          map['message'] is Map<String, dynamic>
-              ? Map<String, dynamic>.from(map['message'] as Map)
-              : <String, dynamic>{};
-      if (message.isEmpty) return;
-      _appendMessage(message);
-    });
-
-    s.on('chat.typing', (payload) {
-      if (!mounted || payload is! Map) return;
-      final map = Map<String, dynamic>.from(payload);
-      if ((map['matchId'] ?? '').toString() != widget.matchId) return;
-      final userId = (map['userId'] ?? '').toString();
-      if (userId.isEmpty || userId == _myUserId) return;
-      final isTyping = map['isTyping'] == true;
-      setState(() {
-        _typingUserId = isTyping ? userId : null;
-        _typingAt = isTyping ? DateTime.now() : null;
-      });
-      _typingTimer?.cancel();
-      if (isTyping) {
-        _typingTimer = Timer(const Duration(seconds: 3), () {
-          if (!mounted) return;
-          final last = _typingAt;
-          if (last != null &&
-              DateTime.now().difference(last) >= const Duration(seconds: 3)) {
-            setState(() => _typingUserId = null);
-          }
+      if (event.type == 'socket.connected' || event.type == 'socket.reconnected') {
+        setState(() => _socketConnected = true);
+        CustomMatchSocketService.instance.subscribeMatch(widget.matchId);
+        return;
+      }
+      if (event.type == 'socket.disconnected') {
+        setState(() => _socketConnected = false);
+        return;
+      }
+      if (event.type == 'chat.message') {
+        if ((event.payload['matchId'] ?? '').toString() != widget.matchId) return;
+        final message = event.payload['message'] is Map
+            ? Map<String, dynamic>.from(event.payload['message'] as Map)
+            : <String, dynamic>{};
+        if (message.isEmpty) return;
+        _appendMessage(message);
+        return;
+      }
+      if (event.type == 'chat.typing') {
+        if ((event.payload['matchId'] ?? '').toString() != widget.matchId) return;
+        final userId = (event.payload['userId'] ?? '').toString();
+        if (userId.isEmpty || userId == _myUserId) return;
+        final isTyping = event.payload['isTyping'] == true;
+        setState(() {
+          _typingUserId = isTyping ? userId : null;
+          _typingAt = isTyping ? DateTime.now() : null;
         });
+        _typingTimer?.cancel();
+        if (isTyping) {
+          _typingTimer = Timer(const Duration(seconds: 3), () {
+            if (!mounted) return;
+            final last = _typingAt;
+            if (last != null &&
+                DateTime.now().difference(last) >= const Duration(seconds: 3)) {
+              setState(() => _typingUserId = null);
+            }
+          });
+        }
       }
     });
-
-    _socket = s;
-    s.connect();
   }
 
   void _appendMessage(Map<String, dynamic> row) {
@@ -234,8 +222,11 @@ class _CustomMatchChatScreenState extends State<CustomMatchChatScreen> {
   }
 
   void _emitTyping(bool isTyping) {
-    if (_socket == null || !_socketConnected) return;
-    _socket!.emit('chat:typing', {'matchId': widget.matchId, 'isTyping': isTyping});
+    if (!_socketConnected) return;
+    CustomMatchSocketService.instance.emitTyping(
+      matchId: widget.matchId,
+      isTyping: isTyping,
+    );
   }
 
   void _onInputChanged(String value) {
@@ -506,3 +497,4 @@ class _CustomMatchChatScreenState extends State<CustomMatchChatScreen> {
     );
   }
 }
+

@@ -530,3 +530,4 @@ class CustomMatchCard extends StatelessWidget {
     );
   }
 }
+

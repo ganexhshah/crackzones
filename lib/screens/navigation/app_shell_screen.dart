@@ -87,3 +87,4 @@ class _AppShellScreenState extends State<AppShellScreen> {
     );
   }
 }
+

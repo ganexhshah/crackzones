@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import '../../services/api_service.dart';
 import '../../providers/wallet_provider.dart';
@@ -22,7 +21,8 @@ class PaymentScreen extends StatefulWidget {
 }
 
 class _PaymentScreenState extends State<PaymentScreen> {
-  File? _uploadedImage;
+  XFile? _uploadedImage;
+  List<int>? _uploadedImageBytes;
   String? _qrImageUrl;
   String? _accountName;
   String? _accountNumber;
@@ -38,15 +38,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
   Future<void> _loadQRCode() async {
     try {
-      print('=== Loading QR Code ===');
-      print('Payment method: ${widget.paymentMethod}');
-      print('API Base URL: ${ApiService.baseUrl}');
-
       final result = await ApiService.getPaymentQR(widget.paymentMethod);
-      print('API Response: $result');
 
       if (result['error'] != null) {
-        print('Error from API: ${result['error']}');
         throw Exception(result['error']);
       }
 
@@ -54,13 +48,6 @@ class _PaymentScreenState extends State<PaymentScreen> {
         final qrData = result['qrData'];
         final apiQrUrl = qrData['qrImageUrl'] ?? qrData['qrImage'];
         final qrUrl = apiQrUrl;
-
-        print('=== QR Data Received ===');
-        print('QR Image URL (final): $qrUrl');
-        print('QR Image URL (api): $apiQrUrl');
-        print('Account Name: ${qrData['accountName']}');
-        print('Account Number: ${qrData['accountNumber']}');
-        print('Is Active: ${qrData['isActive']}');
 
         if (qrUrl == null || qrUrl.isEmpty) {
           throw Exception('QR image URL is empty');
@@ -73,16 +60,11 @@ class _PaymentScreenState extends State<PaymentScreen> {
           _accountNumber = qrData['accountNumber'];
           _isLoading = false;
         });
-
-        print('State updated successfully');
       } else {
-        print('No qrData in response');
         throw Exception('No QR data found');
       }
     } catch (e) {
-      print('=== Error Loading QR Code ===');
-      print('Error: $e');
-      print('Stack trace: ${StackTrace.current}');
+      debugPrint('QR loading failed: $e');
 
       if (!mounted) return;
       setState(() {
@@ -108,8 +90,10 @@ class _PaymentScreenState extends State<PaymentScreen> {
       );
 
       if (image != null) {
+        final bytes = await image.readAsBytes();
         setState(() {
-          _uploadedImage = File(image.path);
+          _uploadedImage = image;
+          _uploadedImageBytes = bytes;
         });
       }
     } catch (e) {
@@ -183,7 +167,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
       final success = await walletProvider.submitDeposit(
         amount: widget.amount.toDouble(),
         method: widget.paymentMethod,
-        screenshotPath: _uploadedImage!.path,
+        screenshotPath: kIsWeb ? null : _uploadedImage!.path,
+        screenshotBytes: _uploadedImageBytes,
+        screenshotFilename: _uploadedImage!.name,
       );
 
       if (success && mounted) {
@@ -220,6 +206,12 @@ class _PaymentScreenState extends State<PaymentScreen> {
   }
 
   Future<void> _downloadQrCode() async {
+    if (kIsWeb) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Download is not supported on web build.')),
+      );
+      return;
+    }
     final url = _qrImageUrl?.trim() ?? '';
     if (url.isEmpty) {
       ScaffoldMessenger.of(
@@ -235,21 +227,16 @@ class _PaymentScreenState extends State<PaymentScreen> {
         throw Exception('Download failed (HTTP ${response.statusCode})');
       }
 
-      final appDir = await getApplicationDocumentsDirectory();
-      final qrDir = Directory('${appDir.path}/qr_downloads');
-      if (!await qrDir.exists()) {
-        await qrDir.create(recursive: true);
-      }
-
-      final filename =
-          'qr_${widget.paymentMethod}_${DateTime.now().millisecondsSinceEpoch}.png';
-      final file = File('${qrDir.path}/$filename');
-      await file.writeAsBytes(response.bodyBytes, flush: true);
-
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('QR saved: ${file.path}')));
+        ).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Downloaded ${response.bodyBytes.length} bytes for QR image.',
+            ),
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -454,7 +441,6 @@ class _PaymentScreenState extends State<PaymentScreen> {
                       fit: BoxFit.contain,
                       loadingBuilder: (context, child, loadingProgress) {
                         if (loadingProgress == null) {
-                          print('Image loaded successfully');
                           return child;
                         }
                         final progress =
@@ -462,7 +448,6 @@ class _PaymentScreenState extends State<PaymentScreen> {
                             ? loadingProgress.cumulativeBytesLoaded /
                                   loadingProgress.expectedTotalBytes!
                             : null;
-                        print('Loading image: ${(progress ?? 0) * 100}%');
                         return Center(
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -481,10 +466,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                         );
                       },
                       errorBuilder: (context, error, stackTrace) {
-                        print('=== Image Load Error ===');
-                        print('Error: $error');
-                        print('Stack trace: $stackTrace');
-                        print('URL: $_qrImageUrl');
+                        debugPrint('QR image load error: $error');
                         return Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
@@ -689,11 +671,21 @@ class _PaymentScreenState extends State<PaymentScreen> {
                       SizedBox(height: 12),
                       ClipRRect(
                         borderRadius: BorderRadius.circular(12),
-                        child: Image.file(
-                          _uploadedImage!,
-                          height: 180,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
+                        child: _uploadedImageBytes == null
+                            ? const SizedBox.shrink()
+                            : Image.memory(
+                                Uint8List.fromList(_uploadedImageBytes!),
+                                height: 180,
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                              ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        _uploadedImage!.name,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[700],
                         ),
                       ),
                       SizedBox(height: 12),
@@ -712,6 +704,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                               onPressed: () {
                                 setState(() {
                                   _uploadedImage = null;
+                                  _uploadedImageBytes = null;
                                 });
                               },
                               icon: Icon(
@@ -797,7 +790,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: Offset(0, -5),
           ),
@@ -869,3 +862,4 @@ class _PaymentScreenState extends State<PaymentScreen> {
     );
   }
 }
+

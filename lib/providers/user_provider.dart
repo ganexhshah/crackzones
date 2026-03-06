@@ -26,7 +26,7 @@ class UserProvider with ChangeNotifier {
         _gameIds = result['user']['gameIds'] ?? [];
       }
     } catch (e) {
-      print('Load profile error: $e');
+      debugPrint('Load profile error: $e');
     }
     
     _isLoading = false;
@@ -41,7 +41,7 @@ class UserProvider with ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
-      print('Load balance error: $e');
+      debugPrint('Load balance error: $e');
     }
   }
   
@@ -53,7 +53,7 @@ class UserProvider with ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
-      print('Load game IDs error: $e');
+      debugPrint('Load game IDs error: $e');
     }
   }
   
@@ -70,7 +70,7 @@ class UserProvider with ChangeNotifier {
       }
       return false;
     } catch (e) {
-      print('Save game ID error: $e');
+      debugPrint('Save game ID error: $e');
       return false;
     }
   }
@@ -84,7 +84,7 @@ class UserProvider with ChangeNotifier {
       }
       return false;
     } catch (e) {
-      print('Delete game ID error: $e');
+      debugPrint('Delete game ID error: $e');
       return false;
     }
   }
@@ -103,7 +103,7 @@ class UserProvider with ChangeNotifier {
       }
       return false;
     } catch (e) {
-      print('Update profile error: $e');
+      debugPrint('Update profile error: $e');
       return false;
     }
   }
@@ -112,7 +112,7 @@ class UserProvider with ChangeNotifier {
     try {
       final result = await ApiService.getUserStats();
       if (result['error'] != null) {
-        print('Load stats error from API: ${result['error']}');
+        debugPrint('Load stats error from API: ${result['error']}');
         // Don't throw, just log and continue
         return;
       }
@@ -121,8 +121,10 @@ class UserProvider with ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
-      print('Load stats exception: $e');
+      debugPrint('Load stats exception: $e');
       // Don't rethrow, just log
     }
   }
 }
+
+

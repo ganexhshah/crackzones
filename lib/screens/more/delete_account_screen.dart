@@ -237,3 +237,4 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
     );
   }
 }
+
